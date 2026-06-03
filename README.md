@@ -27,7 +27,8 @@ incident.io Widget API
 
 ## Features
 
-- **6 component groups**: Query & Retrieval, Knowledge Ingestion, Memories, Dashboard, Documentation, Website
+- **6 component groups** covering the current HydraDB v2 API: API Gateway, Tenants, Context, Query, Indexing Webhooks, and Product Surfaces
+- **Endpoint-specific v2 health checks** based on `https://agents.hydradb.com` / `docs.hydradb.com` API reference
 - **90-day uptime history** with 30/60/90 day rolling metrics
 - **Real-time incident display** with status badges and update timeline
 - **Scheduled maintenance** windows
@@ -96,6 +97,7 @@ cp .env.example .env.local
 | `S3_BUCKET_NAME` | Yes | S3 bucket name |
 | `CRON_SECRET` | Yes | Secret for authenticating Vercel cron requests |
 | `INCIDENT_IO_WIDGET_URL` | No | incident.io Widget API URL (omit to use defaults) |
+| `HEALTH_CHECK_ENDPOINTS` | No | JSON override for health-check endpoints (defaults cover all documented v2 API components) |
 
 ### 3. Vercel Deployment
 

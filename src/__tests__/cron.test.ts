@@ -33,6 +33,7 @@ import {
   mapComponentStatuses,
   normalizeName,
 } from "@/lib/incident-io";
+import { DEFAULT_COMPONENT_GROUPS } from "@/lib/defaults";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -115,7 +116,22 @@ describe("GET /api/cron", () => {
     expect(snapshot.maintenance_windows).toEqual([]);
   });
 
-  it("does not overwrite existing data when not configured", async () => {
+  it("does not overwrite existing current default data when not configured", async () => {
+    mockReadStatusData.mockResolvedValue({
+      generated_at: "2026-04-14T00:00:00Z",
+      configured: false,
+      overall_status: "operational",
+      component_groups: DEFAULT_COMPONENT_GROUPS,
+      incidents: [],
+      maintenance_windows: [],
+    });
+
+    const res = await GET(makeRequest({ authorization: "Bearer test-secret" }));
+    expect(res.status).toBe(200);
+    expect(mockWriteStatusData).not.toHaveBeenCalled();
+  });
+
+  it("migrates stale unconfigured fallback data to the current default components", async () => {
     mockReadStatusData.mockResolvedValue({
       generated_at: "2026-04-14T00:00:00Z",
       configured: false,
@@ -124,10 +140,16 @@ describe("GET /api/cron", () => {
       incidents: [],
       maintenance_windows: [],
     });
+    mockWriteStatusData.mockResolvedValue(undefined);
 
     const res = await GET(makeRequest({ authorization: "Bearer test-secret" }));
     expect(res.status).toBe(200);
-    expect(mockWriteStatusData).not.toHaveBeenCalled();
+    expect(mockWriteStatusData).toHaveBeenCalledTimes(1);
+    const snapshot = mockWriteStatusData.mock.calls[0][0];
+    const allIds = snapshot.component_groups.flatMap((g) => g.components.map((c) => c.id));
+    expect(allIds).toContain("api-gateway");
+    expect(allIds).toContain("query");
+    expect(allIds).toContain("documentation");
   });
 
   // -----------------------------------------------------------------------
@@ -254,8 +276,9 @@ describe("GET /api/cron", () => {
     expect(groupIds).not.toContain("old-group");
     // New groups from DEFAULT_COMPONENT_GROUPS must be present
     expect(groupIds).toContain("tenants");
-    expect(groupIds).toContain("memories");
-    expect(groupIds).toContain("recall");
+    expect(groupIds).toContain("context");
+    expect(groupIds).toContain("query");
+    expect(groupIds).toContain("indexing-webhooks");
 
     // Old component "hybrid-search" should not appear in any group
     const allComponents = snapshot.component_groups.flatMap(
@@ -317,7 +340,7 @@ describe("GET /api/cron", () => {
     expect(preservedDates).toContain("2026-04-13");
   });
 
-  it("reverseComponentMap remaps short display names via componentNameMap (e.g. 'List' -> 'list-data')", async () => {
+  it("reverseComponentMap remaps display names via componentNameMap (e.g. webhook display name -> internal ID)", async () => {
     process.env.INCIDENT_IO_WIDGET_URL = "https://example.com/widget";
 
     // Restore normalizeName implementation (resetAllMocks clears the factory mock)
@@ -326,11 +349,12 @@ describe("GET /api/cron", () => {
     );
 
     mockReadStatusData.mockResolvedValue(null);
-    // Widget returns a component with display name "List" and a widget-specific UUID
-    const WIDGET_LIST_ID = "widget-uuid-for-list";
+    // Widget returns a component with a display name that does not match the
+    // simple hyphen-to-space form of our internal ID.
+    const WIDGET_WEBHOOK_ID = "widget-uuid-for-register-webhook";
     mockFetchWidgetData.mockResolvedValue({
       components: [
-        { id: WIDGET_LIST_ID, name: "List", status: { id: "operational" } },
+        { id: WIDGET_WEBHOOK_ID, name: "Register / Update Indexing Webhook", status: { id: "operational" } },
       ],
     });
     // normalizeWidgetResponse returns an incident that references the widget UUID
@@ -338,18 +362,18 @@ describe("GET /api/cron", () => {
       incidents: [
         {
           id: "inc-1",
-          name: "List is down",
+          name: "Indexing webhook registration is down",
           status: "investigating",
-          components: [WIDGET_LIST_ID],
+          components: [WIDGET_WEBHOOK_ID],
           updates: [],
           started_at: new Date().toISOString(),
         },
       ],
       maintenance_windows: [],
     });
-    // mapComponentStatuses must include "list-data" so the reverseComponentMap can index it
+    // mapComponentStatuses must include the internal ID so reverseComponentMap can index it
     mockMapComponentStatuses.mockReturnValue(
-      new Map([["list-data", "operational"]]),
+      new Map([["register-indexing-webhook", "operational"]]),
     );
     mockWriteStatusData.mockResolvedValue(undefined);
 
@@ -357,16 +381,16 @@ describe("GET /api/cron", () => {
     expect(res.status).toBe(200);
 
     // The written snapshot should have the incident's component remapped from
-    // the widget UUID to our internal ID "list-data"
+    // the widget UUID to our internal ID "register-indexing-webhook"
     const snapshot = mockWriteStatusData.mock.calls[0][0];
     const allComponents = snapshot.component_groups.flatMap(
       (g: { components: any[] }) => g.components,
     );
-    const listComp = allComponents.find((c: { id: string }) => c.id === "list-data");
-    expect(listComp).toBeDefined();
-    // The incident should have overridden the status to "outage" because
-    // the reverseComponentMap correctly mapped widget-uuid-for-list -> list-data
-    expect(listComp.status).toBe("outage");
+    const webhookComp = allComponents.find((c: { id: string }) => c.id === "register-indexing-webhook");
+    expect(webhookComp).toBeDefined();
+    // The incident should have overridden the status to "outage" because the
+    // reverseComponentMap correctly mapped the widget UUID to our internal ID.
+    expect(webhookComp.status).toBe("outage");
   });
 
   it("passes componentNameMap to mapComponentStatuses for display-name matching", async () => {
@@ -385,9 +409,10 @@ describe("GET /api/cron", () => {
     expect(callArgs).toHaveLength(3);
     const componentNameMap = callArgs[2] as Map<string, string>;
     expect(componentNameMap).toBeInstanceOf(Map);
-    // Spot-check a few new component IDs
-    expect(componentNameMap.get("monitor-infra-status")).toBe("Monitor & Infra Status");
-    expect(componentNameMap.get("shared-hive-memory")).toBe("Shared / Hive Memory");
+    // Spot-check a few v2 component IDs
+    expect(componentNameMap.get("tenant-status")).toBe("Tenant Status");
+    expect(componentNameMap.get("ingest-context")).toBe("Ingest Context");
+    expect(componentNameMap.get("register-indexing-webhook")).toBe("Register / Update Indexing Webhook");
     expect(componentNameMap.get("dashboard")).toBe("Dashboard");
   });
 });

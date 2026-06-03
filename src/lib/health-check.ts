@@ -10,8 +10,13 @@ import {
 } from "./health-config";
 
 /** Unique key for deduplicating HTTP calls to the same method + URL. */
-const endpointKey = (ep: HealthEndpoint): string =>
-  `${ep.method ?? "GET"}|${ep.url}`;
+const endpointKey = (ep: HealthEndpoint): string => {
+  const headers = Object.entries(ep.headers ?? {})
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${key}:${value}`)
+    .join(",");
+  return `${ep.method ?? "GET"}|${ep.url}|${headers}`;
+};
 
 export interface HealthCheckResult {
   componentId: string;
@@ -40,7 +45,10 @@ export async function checkEndpoint(
     const response = await fetch(endpoint.url, {
       method,
       signal: controller.signal,
-      headers: { "User-Agent": "HydraDB-HealthCheck/1.0" },
+      headers: {
+        "User-Agent": "HydraDB-HealthCheck/1.0",
+        ...(endpoint.headers ?? {}),
+      },
       redirect: "follow",
     });
 

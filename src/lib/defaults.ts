@@ -8,82 +8,82 @@ const op = (id: string, name: string): StatusComponent => ({
   daily_history: [],
 });
 
-/** Default component definitions for HydraDB — matches docs.hydradb.com API Reference */
+/**
+ * Default component definitions for HydraDB.
+ *
+ * This list mirrors the current v2 API surface documented at
+ * https://agents.hydradb.com and https://docs.hydradb.com/api-reference/v2.
+ */
 export const DEFAULT_COMPONENTS: StatusComponent[] = [
+  // API gateway
+  op("api-gateway", "API Gateway"),
+
   // Tenants
   op("create-tenant", "Create Tenant"),
-  op("monitor-infra-status", "Monitor & Infra Status"),
-  op("list-sub-tenant-ids", "List Sub-Tenant IDs"),
+  op("list-tenants", "List Tenants"),
   op("delete-tenant", "Delete Tenant"),
-  // Memories
-  op("user-memory", "User Memory"),
-  op("knowledge-base", "Knowledge Base"),
-  op("shared-hive-memory", "Shared / Hive Memory"),
-  // Recall
-  op("full-recall", "Full Recall"),
-  op("memory-recall", "Memory Recall"),
-  op("lexical-recall", "Lexical Recall"),
-  // Ingestion
-  op("verify-processing", "Verify Processing"),
-  // Manage Memories
-  op("list-data", "List"),
-  op("fetch-content", "Fetch Content"),
-  op("graph-relations", "Graph Relations"),
-  op("delete-user-memory", "Delete User Memory"),
-  op("delete-knowledge", "Delete Knowledge"),
-  // Custom Embeddings
-  op("add-embeddings", "Add Embeddings"),
-  op("search-embeddings", "Search Embeddings"),
-  op("filter-raw-embeddings", "Filter Raw Embeddings"),
-  op("delete-embeddings", "Delete Embeddings"),
-  // Dashboard
+  op("tenant-status", "Tenant Status"),
+  op("list-sub-tenants", "List Sub-Tenants"),
+  op("tenant-stats", "Tenant Stats"),
+
+  // Context
+  op("ingest-context", "Ingest Context"),
+  op("ingestion-status", "Ingestion Status"),
+  op("inspect-context", "Inspect Context"),
+  op("list-context", "List Context"),
+  op("delete-context", "Delete Context"),
+  op("context-relations", "Context Relations"),
+
+  // Query
+  op("query", "Query"),
+
+  // Indexing webhooks
+  op("get-indexing-webhook", "Get Indexing Webhook"),
+  op("register-indexing-webhook", "Register / Update Indexing Webhook"),
+  op("delete-indexing-webhook", "Delete Indexing Webhook"),
+  op("test-indexing-webhook", "Test Indexing Webhook"),
+  op("list-webhook-deliveries", "List Webhook Deliveries"),
+  op("get-webhook-delivery", "Get Webhook Delivery"),
+  op("retry-webhook-delivery", "Retry Webhook Delivery"),
+
+  // Product surfaces
   op("dashboard", "Dashboard"),
+  op("documentation", "Documentation"),
 ];
 
+const group = (id: string, name: string, componentIds: string[]): ComponentGroup => ({
+  id,
+  name,
+  components: DEFAULT_COMPONENTS.filter((c) => componentIds.includes(c.id)),
+});
+
 export const DEFAULT_COMPONENT_GROUPS: ComponentGroup[] = [
-  {
-    id: "tenants",
-    name: "Tenants",
-    components: DEFAULT_COMPONENTS.filter((c) =>
-      ["create-tenant", "monitor-infra-status", "list-sub-tenant-ids", "delete-tenant"].includes(c.id),
-    ),
-  },
-  {
-    id: "memories",
-    name: "Memories",
-    components: DEFAULT_COMPONENTS.filter((c) =>
-      ["user-memory", "knowledge-base", "shared-hive-memory"].includes(c.id),
-    ),
-  },
-  {
-    id: "recall",
-    name: "Recall",
-    components: DEFAULT_COMPONENTS.filter((c) =>
-      ["full-recall", "memory-recall", "lexical-recall"].includes(c.id),
-    ),
-  },
-  {
-    id: "ingestion",
-    name: "Ingestion",
-    components: DEFAULT_COMPONENTS.filter((c) => c.id === "verify-processing"),
-  },
-  {
-    id: "manage-memories",
-    name: "Manage Memories",
-    components: DEFAULT_COMPONENTS.filter((c) =>
-      ["list-data", "fetch-content", "graph-relations", "delete-user-memory", "delete-knowledge"].includes(c.id),
-    ),
-  },
-  {
-    id: "custom-embeddings",
-    name: "Custom Embeddings",
-    components: DEFAULT_COMPONENTS.filter((c) =>
-      ["add-embeddings", "search-embeddings", "filter-raw-embeddings", "delete-embeddings"].includes(c.id),
-    ),
-  },
-  {
-    id: "dashboard",
-    name: "Dashboard",
-    components: DEFAULT_COMPONENTS.filter((c) => c.id === "dashboard"),
-  },
+  group("api-gateway", "API Gateway", ["api-gateway"]),
+  group("tenants", "Tenants", [
+    "create-tenant",
+    "list-tenants",
+    "delete-tenant",
+    "tenant-status",
+    "list-sub-tenants",
+    "tenant-stats",
+  ]),
+  group("context", "Context", [
+    "ingest-context",
+    "ingestion-status",
+    "inspect-context",
+    "list-context",
+    "delete-context",
+    "context-relations",
+  ]),
+  group("query", "Query", ["query"]),
+  group("indexing-webhooks", "Indexing Webhooks", [
+    "get-indexing-webhook",
+    "register-indexing-webhook",
+    "delete-indexing-webhook",
+    "test-indexing-webhook",
+    "list-webhook-deliveries",
+    "get-webhook-delivery",
+    "retry-webhook-delivery",
+  ]),
+  group("product-surfaces", "Product Surfaces", ["dashboard", "documentation"]),
 ];
