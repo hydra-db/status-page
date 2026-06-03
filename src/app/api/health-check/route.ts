@@ -72,8 +72,9 @@ export async function GET(request: Request): Promise<NextResponse> {
     const incidentsCreated: string[] = [];
     const incidentsResolved: string[] = [];
 
-    // Track incidents already created/resolved per URL in this cycle so we
-    // don't duplicate API calls for components sharing the same endpoint.
+    // Track incidents already created/resolved per effective endpoint in this
+    // cycle so we don't duplicate API calls for components sharing the same
+    // method + URL.
     const urlIncidentCache = new Map<
       string,
       { id: string; createdAt: string } | null
@@ -132,8 +133,8 @@ export async function GET(request: Request): Promise<NextResponse> {
           !prevState.activeIncidentId &&
           hasApiKey
         ) {
-          // Threshold reached — create one incident per URL, shared across
-          // all components that map to the same endpoint.
+          // Threshold reached — create one incident per effective endpoint,
+          // shared across all components that map to the same method + URL.
           const urlKey = `${endpoint.method ?? "GET"}|${endpoint.url}`;
 
           if (!urlIncidentCache.has(urlKey)) {
@@ -141,7 +142,13 @@ export async function GET(request: Request): Promise<NextResponse> {
             const sevId = await getSeverity();
             if (sevId) {
               const affectedNames = results
-                .filter((r) => r.url === endpoint.url && !r.healthy)
+                .filter((r) => {
+                  if (r.healthy || r.url !== endpoint.url) return false;
+                  const resultEndpoint = endpoints.find(
+                    (e) => e.componentId === r.componentId,
+                  );
+                  return (resultEndpoint?.method ?? "GET") === (endpoint.method ?? "GET");
+                })
                 .map((r) => r.name);
               const incidentName =
                 affectedNames.length > 1

@@ -101,6 +101,34 @@ describe("checkEndpoint", () => {
     expect(result.error).toContain("Timeout");
   });
 
+  it("sends configured headers", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      status: 401,
+      ok: false,
+    });
+
+    const endpoint: HealthEndpoint = {
+      componentId: "query",
+      name: "Query",
+      url: "https://api.hydradb.com/query",
+      method: "POST",
+      headers: { "API-Version": "2" },
+      expectedStatus: [401],
+    };
+
+    await checkEndpoint(endpoint);
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://api.hydradb.com/query",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "User-Agent": "HydraDB-HealthCheck/1.0",
+          "API-Version": "2",
+        }),
+      }),
+    );
+  });
+
   it("respects custom expectedStatus", async () => {
     global.fetch = jest.fn().mockResolvedValue({
       status: 204,

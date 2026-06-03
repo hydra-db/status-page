@@ -62,7 +62,7 @@ describe("HEALTH_CHECK_ENDPOINTS env var parsing", () => {
   it("parses simple object format", () => {
     process.env.HEALTH_CHECK_ENDPOINTS = JSON.stringify({
       dashboard: "https://app.hydradb.com",
-      "full-recall": "https://api.hydradb.com/recall/full_recall",
+      query: "https://api.hydradb.com/query",
     });
 
     jest.resetModules();
@@ -81,7 +81,7 @@ describe("HEALTH_CHECK_ENDPOINTS env var parsing", () => {
     const endpoints = getHealthEndpoints();
     // Falls back to defaults derived from DEFAULT_COMPONENTS
     expect(endpoints).toHaveLength(DEFAULT_COMPONENTS.length);
-    expect(endpoints[0].componentId).toBe("create-tenant");
+    expect(endpoints[0].componentId).toBe("api-gateway");
   });
 });
 
@@ -118,15 +118,51 @@ describe("getHealthEndpoints default endpoints", () => {
     }
   });
 
-  it("uses only 3 distinct URLs", () => {
+  it("maps default checks to the documented v2 API and product surfaces", () => {
     jest.resetModules();
     const { getHealthEndpoints } = require("@/lib/health-config");
     const endpoints = getHealthEndpoints() as HealthEndpoint[];
+    const byId = new Map(endpoints.map((ep) => [ep.componentId, ep]));
 
-    const uniqueUrls = new Set(endpoints.map((ep: HealthEndpoint) => ep.url));
-    expect(uniqueUrls.size).toBe(3);
-    expect(uniqueUrls).toContain("https://api.hydradb.com/health");
-    expect(uniqueUrls).toContain("https://ingestion.usecortex.ai/health");
-    expect(uniqueUrls).toContain("https://app.hydradb.com");
+    expect(byId.get("api-gateway")?.url).toBe("https://api.hydradb.com/health");
+    expect(byId.get("create-tenant")).toMatchObject({
+      url: "https://api.hydradb.com/tenants",
+      method: "POST",
+      headers: { "API-Version": "2" },
+    });
+    expect(byId.get("list-tenants")).toMatchObject({
+      url: "https://api.hydradb.com/tenants",
+      method: "GET",
+    });
+    expect(byId.get("delete-tenant")).toMatchObject({
+      url: "https://api.hydradb.com/tenants",
+      method: "DELETE",
+    });
+    expect(byId.get("ingest-context")).toMatchObject({
+      url: "https://api.hydradb.com/context/ingest",
+      method: "POST",
+      headers: { "API-Version": "2" },
+    });
+    expect(byId.get("query")).toMatchObject({
+      url: "https://api.hydradb.com/query",
+      method: "POST",
+      headers: { "API-Version": "2" },
+    });
+    expect(byId.get("register-indexing-webhook")).toMatchObject({
+      url: "https://api.hydradb.com/webhooks/indexing",
+      method: "POST",
+      headers: { "API-Version": "2" },
+    });
+    expect(byId.get("dashboard")?.url).toBe("https://app.hydradb.com");
+    expect(byId.get("documentation")?.url).toBe("https://agents.hydradb.com");
+  });
+
+  it("treats auth/validation responses as healthy for v2 endpoint reachability checks", () => {
+    jest.resetModules();
+    const { getHealthEndpoints } = require("@/lib/health-config");
+    const endpoints = getHealthEndpoints() as HealthEndpoint[];
+    const queryEndpoint = endpoints.find((ep) => ep.componentId === "query");
+
+    expect(queryEndpoint?.expectedStatus).toEqual([200, 202, 400, 401, 403, 422]);
   });
 });

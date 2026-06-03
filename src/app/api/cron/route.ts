@@ -205,8 +205,10 @@ export async function GET(request: Request): Promise<NextResponse> {
       });
     }
 
-    // 8. Not configured -- write default data if no existing data
-    if (!existing) {
+    // 8. Not configured -- write default data on first run, and migrate an
+    // existing unconfigured fallback snapshot if the default component list has
+    // changed (for example, when the documented API surface changes).
+    if (!existing || (existing.configured === false && !hasCurrentDefaultComponents(existing))) {
       const snapshot: StatusSnapshot = {
         generated_at: new Date().toISOString(),
         configured: false,
@@ -225,4 +227,15 @@ export async function GET(request: Request): Promise<NextResponse> {
     console.error("[cron] Unhandled error:", err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+function hasCurrentDefaultComponents(snapshot: StatusSnapshot): boolean {
+  const snapshotIds = snapshot.component_groups.flatMap((group) =>
+    group.components.map((component) => component.id),
+  );
+  const defaultIds = DEFAULT_COMPONENTS.map((component) => component.id);
+
+  if (snapshotIds.length !== defaultIds.length) return false;
+  const snapshotIdSet = new Set(snapshotIds);
+  return defaultIds.every((id) => snapshotIdSet.has(id));
 }

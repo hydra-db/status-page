@@ -4,10 +4,10 @@
  * Covers scenarios NOT exercised by the existing unit tests:
  *   1. normalizeName in isolation
  *   2. Partial-incident duplicate scenario (mixed activeIncidentId state for shared URL)
- *   3. reverseComponentMap short display name gap (e.g. "List" -> "list-data")
+ *   3. reverseComponentMap display-name normalization edge cases
  *   4. vercel.json health-check cron is wired
  *
- * NOTE: URL mapping tests (21 components, 3 URLs) live in health-config.test.ts
+ * NOTE: v2 endpoint URL/method/header mapping tests live in health-config.test.ts
  * to avoid conflicts with the jest.mock() declarations needed for route handler tests.
  */
 
@@ -205,29 +205,29 @@ describe("partial-incident duplicate scenario (mixed activeIncidentId state)", (
 });
 
 // ---------------------------------------------------------------------------
-// 3. reverseComponentMap short display name gap
+// 3. reverseComponentMap display-name normalization edge cases
 // ---------------------------------------------------------------------------
 
-describe("reverseComponentMap short display name gap (cron route)", () => {
-  it("normalizeName('List') does NOT equal the hyphen-to-space form of 'list-data'", () => {
-    expect(normalizeName("List")).toBe("list");
-    expect("list-data".replace(/-/g, " ").toLowerCase()).toBe("list data");
-    expect(normalizeName("List")).not.toBe("list data");
+describe("reverseComponentMap display-name normalization edge cases (cron route)", () => {
+  it("normalizeName('Register / Update Indexing Webhook') does NOT equal the hyphen-to-space form of 'register-indexing-webhook'", () => {
+    expect(normalizeName("Register / Update Indexing Webhook")).toBe("register update indexing webhook");
+    expect("register-indexing-webhook".replace(/-/g, " ").toLowerCase()).toBe("register indexing webhook");
+    expect(normalizeName("Register / Update Indexing Webhook")).not.toBe("register indexing webhook");
   });
 
-  it("normalizeName('Monitor & Infra Status') DOES match hyphen-to-space form of 'monitor-infra-status'", () => {
-    expect(normalizeName("Monitor & Infra Status")).toBe("monitor infra status");
-    expect("monitor-infra-status".replace(/-/g, " ").toLowerCase()).toBe("monitor infra status");
-    expect(normalizeName("Monitor & Infra Status")).toBe(
-      "monitor-infra-status".replace(/-/g, " ").toLowerCase(),
+  it("normalizeName('Tenant Status') DOES match hyphen-to-space form of 'tenant-status'", () => {
+    expect(normalizeName("Tenant Status")).toBe("tenant status");
+    expect("tenant-status".replace(/-/g, " ").toLowerCase()).toBe("tenant status");
+    expect(normalizeName("Tenant Status")).toBe(
+      "tenant-status".replace(/-/g, " ").toLowerCase(),
     );
   });
 
-  it("normalizeName('Shared / Hive Memory') DOES match hyphen-to-space form of 'shared-hive-memory'", () => {
-    expect(normalizeName("Shared / Hive Memory")).toBe("shared hive memory");
-    expect("shared-hive-memory".replace(/-/g, " ").toLowerCase()).toBe("shared hive memory");
-    expect(normalizeName("Shared / Hive Memory")).toBe(
-      "shared-hive-memory".replace(/-/g, " ").toLowerCase(),
+  it("normalizeName('List Sub-Tenants') keeps the sub-tenant hyphen, so componentNameMap is needed", () => {
+    expect(normalizeName("List Sub-Tenants")).toBe("list sub-tenants");
+    expect("list-sub-tenants".replace(/-/g, " ").toLowerCase()).toBe("list sub tenants");
+    expect(normalizeName("List Sub-Tenants")).not.toBe(
+      "list-sub-tenants".replace(/-/g, " ").toLowerCase(),
     );
   });
 });
