@@ -19,6 +19,9 @@ export interface StatusComponent {
   status: string; // current status
   uptime: UptimeMetrics;
   daily_history: DailyUptime[];
+  method?: string; // API method, when this component represents an API route
+  path?: string; // API path, when this component represents an API route
+  href?: string; // External link for product/documentation surfaces
 }
 
 /** A group of related components */

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ComponentGroup as ComponentGroupType, DurationDays } from "@/types/status";
+import { ComponentGroup as ComponentGroupType, DurationDays, StatusComponent } from "@/types/status";
 import UptimeBar from "@/components/UptimeBar";
 import { cardStyle } from "@/lib/styles";
 
@@ -39,6 +39,42 @@ function getWorstStatus(statuses: string[]): string {
 
 function getUptimeKey(duration: DurationDays): "30d" | "60d" | "90d" {
   return `${duration}d` as "30d" | "60d" | "90d";
+}
+
+function ComponentName({ component }: { component: StatusComponent }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+      {component.href ? (
+        <>
+          <a
+            href={component.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(event) => event.stopPropagation()}
+            style={{ color: "var(--text)", textDecoration: "none" }}
+          >
+            {component.name}
+          </a>
+          <a
+            href={component.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(event) => event.stopPropagation()}
+            style={{ fontSize: "12px", color: "var(--text-40)", fontFamily: "monospace", textDecoration: "none" }}
+          >
+            ({component.href}) ↗
+          </a>
+        </>
+      ) : (
+        <span>{component.name}</span>
+      )}
+      {component.method && component.path && (
+        <span style={{ fontSize: "12px", color: "var(--text-40)", fontFamily: "monospace" }}>
+          ({component.method} {component.path})
+        </span>
+      )}
+    </span>
+  );
 }
 
 function getGroupUptime(group: ComponentGroupType, duration: DurationDays): number {
@@ -112,7 +148,7 @@ export default function ComponentGroup({ group, duration }: ComponentGroupProps)
           />
           {/* Group name */}
           <span style={{ fontWeight: 600, fontSize: "14px", color: "var(--text)" }}>
-            {group.name}
+            {group.components.length === 1 ? <ComponentName component={group.components[0]} /> : group.name}
           </span>
           {/* Component count badge + chevron */}
           {isExpandable && (
@@ -193,7 +229,9 @@ export default function ComponentGroup({ group, duration }: ComponentGroupProps)
                       flexShrink: 0,
                     }}
                   />
-                  <span style={{ fontSize: "13px", color: "var(--text-70)" }}>{comp.name}</span>
+                  <span style={{ fontSize: "13px", color: "var(--text-70)" }}>
+                    <ComponentName component={comp} />
+                  </span>
                 </div>
                 <span
                   style={{
