@@ -44,20 +44,6 @@ export function getBucketName(): string {
 }
 
 /**
- * Returns the public URL for the status.json file in S3.
- * Used by the frontend (ISR) to fetch status data without AWS credentials.
- */
-export function getStatusDataUrl(): string {
-  // Allow override for local development / testing
-  if (process.env.STATUS_DATA_URL) {
-    return process.env.STATUS_DATA_URL;
-  }
-  const bucket = getBucketName();
-  const region = process.env.S3_REGION || "us-east-1";
-  return `https://${bucket}.s3.${region}.amazonaws.com/${STATUS_FILE_KEY}`;
-}
-
-/**
  * Writes the status snapshot to S3.
  * Called by the cron job after computing uptime data.
  */
@@ -75,7 +61,8 @@ export async function writeStatusData(data: StatusSnapshot): Promise<void> {
 
 /**
  * Reads the current status snapshot from S3.
- * Called by the cron job to merge with existing historical data.
+ * Called by the cron job to merge with existing historical data, and by the
+ * page (ISR) to render it. The bucket is private, so both use credentials.
  * Returns null if the file doesn't exist (first run).
  */
 export async function readStatusData(): Promise<StatusSnapshot | null> {
