@@ -1,4 +1,4 @@
-import { getStatusDataUrl } from "@/lib/s3";
+import { readStatusData } from "@/lib/s3";
 import type { StatusSnapshot } from "@/types/status";
 import StatusPage from "@/components/StatusPage";
 
@@ -9,13 +9,9 @@ export default async function Page() {
   let data: StatusSnapshot | null = null;
 
   try {
-    const url = getStatusDataUrl();
-    const res = await fetch(url);
-    if (res.ok) {
-      data = await res.json();
-    }
+    data = await readStatusData();
   } catch {
-    // S3 fetch failed -- render with null data (unconfigured state)
+    // S3 read failed -- render with null data (unconfigured state)
   }
 
   return <StatusPage data={data} />;

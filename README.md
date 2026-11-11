@@ -10,7 +10,7 @@ incident.io Widget API
         v
   +---------------+     writes JSON      +----------+
   |  Cron Job     | ------------------->  |  AWS S3  |
-  |  (Vercel)     |   every 5 min        |  (public)|
+  |  (Vercel)     |   every 5 min        | (private)|
   +---------------+                       +----------+
                                                |
                                          reads JSON (ISR)
@@ -39,32 +39,15 @@ incident.io Widget API
 ### Prerequisites
 
 - Node.js 18+
-- AWS S3 bucket with public read access
+- AWS S3 bucket (private)
 - Vercel account
 - (Optional) incident.io account with Widget API
 
 ### 1. S3 Bucket
 
-Create an S3 bucket and add a public read policy for the status data.
+Create an S3 bucket and leave **Block all public access** on. Nothing reads the bucket anonymously: the cron jobs and the page both use the AWS credentials below.
 
-**Important**: New S3 buckets block all public access by default. You must first go to the bucket's **Permissions > Block public access** settings and disable "Block all public access" (you can leave the other sub-options off too, or just uncheck the top-level toggle). Then add this bucket policy:
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "PublicReadStatusJson",
-      "Effect": "Allow",
-      "Principal": "*",
-      "Action": "s3:GetObject",
-      "Resource": "arn:aws:s3:::YOUR_BUCKET_NAME/status.json"
-    }
-  ]
-}
-```
-
-The cron job's AWS credentials also need read/write access. Create an IAM policy:
+Create an IAM policy for those credentials:
 
 ```json
 {
@@ -73,7 +56,10 @@ The cron job's AWS credentials also need read/write access. Create an IAM policy
     {
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject"],
-      "Resource": "arn:aws:s3:::YOUR_BUCKET_NAME/status.json"
+      "Resource": [
+        "arn:aws:s3:::YOUR_BUCKET_NAME/status.json",
+        "arn:aws:s3:::YOUR_BUCKET_NAME/health-state.json"
+      ]
     }
   ]
 }
